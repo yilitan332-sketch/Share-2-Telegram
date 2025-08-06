@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Share to Telegram",
+  "version": "2.0",
+
+  "description": "Shares link with Telegram user of your choice via Telegram app.",
+  "author": "Albicant",
+  "homepage_url": "https://github.com/albicant",
+  "icons": {
+    "48": "icons/Apps-Telegram-48.png",
+    "96": "icons/Apps-Telegram-96.png"
+  },
+
+  "permissions": [
+    "tabs",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "scripts": ["lib/browser-polyfill.js", "background.js"]
+  },
+
+  "action": {
+    "browser_style": true,
+    "default_icon": {
+      "32": "icons/Telegram-32.png",
+      "64": "icons/Telegram-64.png"
+    },
+    "default_title": "Share to Telegram"
+  },
+
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+
+}
