@@ -21,11 +21,9 @@ function updateStatus() {
 async function authorize() {
   console.log("Authorization button clicked.");
 
-  // Get the currently active tab to share a real URL instead of a dummy one.
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-
-  // Use the current tab's URL, or a sensible fallback if no active tab is found.
-  const urlToShare = (tabs[0] && tabs[0].url) ? tabs[0].url : "https://telegram.org/";
+  // Get the URL that was stored by the background script.
+  const result = await browser.storage.local.get("authUrl");
+  const urlToShare = result.authUrl || "https://telegram.org/";
   console.log(`Using URL for authorization: ${urlToShare}`);
 
   // Set the flag in storage first
@@ -35,6 +33,9 @@ async function authorize() {
   // Open the Telegram share link for the first time for the user to approve OS-level prompts
   const authShareLink = `https://telegram.me/share/url?url=${encodeURIComponent(urlToShare)}`;
   await browser.tabs.create({ url: authShareLink, active: true });
+
+  // Clean up the stored URL
+  await browser.storage.local.remove("authUrl");
 
   // Update the status on the options page
   updateStatus();

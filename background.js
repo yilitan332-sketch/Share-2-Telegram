@@ -120,7 +120,9 @@ async function onClicked(currentTab) {
       await triggerTelegramShare(shareUrl);
     } else {
       // --- Unauthorized Workflow ---
-      console.log("User is not authorized. Opening options page for one-time setup.");
+      console.log("User is not authorized. Storing current URL for one-time setup.");
+      // Store the current tab's URL to be used in the options page for authorization.
+      await browser.storage.local.set({ authUrl: currentTab.url });
       browser.runtime.openOptionsPage();
     }
   } catch (error) {
