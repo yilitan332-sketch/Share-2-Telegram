@@ -113,14 +113,14 @@ async function onClicked(currentTab) {
   try {
     const result = await browser.storage.local.get("isAuthorized");
 
-    const shareUrl = `https://telegram.me/share/url?url=${encodeURIComponent(currentTab.url)}`;
-
     if (result.isAuthorized) {
       // --- Authorized Workflow ---
       console.log("User is authorized. Proceeding with sharing.");
+      const shareUrl = `https://telegram.me/share/url?url=${encodeURIComponent(currentTab.url)}`;
       await triggerTelegramShare(shareUrl);
     } else {
       // --- First-Time-Use Workflow ---
+      const firstTimeShareUrl = `https://telegram.me/share/url?url=${encodeURIComponent(currentTab.url)}`;
       console.log("First time use. Setting authorization and triggering share.");
 
       // Set the flag in storage so this runs only once
@@ -128,7 +128,7 @@ async function onClicked(currentTab) {
       console.log("Authorization status set to true.");
 
       // Trigger the share, which will also prompt for OS-level permissions
-      await triggerTelegramShare(shareUrl);
+      await triggerTelegramShare(firstTimeShareUrl);
     }
   } catch (error) {
     console.error(`An error occurred: ${error}`);
