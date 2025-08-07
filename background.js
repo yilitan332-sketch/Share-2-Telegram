@@ -1,7 +1,7 @@
 const SHARE_URL_PATTERN = "https://telegram.me/share/*";
 
 // YouTube-style approach: Use iframe or direct window.location instead of tabs
-async function triggerTelegramShare(url) {
+async function triggerTelegramShare(url, originalTabId) {
   console.log("Triggering Telegram share with URL:", url);
   
   try {
@@ -49,11 +49,11 @@ async function triggerTelegramShare(url) {
   }
   
   // Fallback to the original tab method if injection fails
-  await fallbackTabMethod(url);
+  await fallbackTabMethod(url, originalTabId);
 }
 
-// Fallback method - improved version of the original approach
-async function fallbackTabMethod(url) {
+// Fallback method - improved version with original tab ID tracking
+async function fallbackTabMethod(url, originalTabId) {
   // Find any existing share tabs
   const oldTabs = await browser.tabs.query({ url: SHARE_URL_PATTERN });
 
@@ -75,19 +75,19 @@ async function fallbackTabMethod(url) {
   // Quickly switch back to the original tab
   setTimeout(async () => {
     try {
-      // Get all tabs and find the one we came from (excluding the share tab)
-      const allTabs = await browser.tabs.query({ currentWindow: true });
-      const originalTab = allTabs.find(tab => 
-        tab.id !== newTab.id && 
-        !tab.url.includes('telegram.me/share') &&
-        (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
-      );
-      
-      if (originalTab) {
-        await browser.tabs.update(originalTab.id, { active: true });
-        console.log("Switched back to original tab");
-      } else {
-        console.log("No suitable original tab found to switch back to");
+      // First, verify the original tab still exists
+      try {
+        const originalTab = await browser.tabs.get(originalTabId);
+        if (originalTab) {
+          await browser.tabs.update(originalTabId, { active: true });
+          console.log(`Switched back to original tab with ID: ${originalTabId}`);
+        } else {
+          console.log("Original tab no longer exists, falling back to finding a suitable tab");
+          await fallbackToSuitableTab(newTab.id);
+        }
+      } catch (tabNotFoundError) {
+        console.log("Original tab not found, falling back to finding a suitable tab");
+        await fallbackToSuitableTab(newTab.id);
       }
       
       // Close the share tab after protocol is triggered
@@ -106,9 +106,30 @@ async function fallbackTabMethod(url) {
   }, 300);
 }
 
+// Helper function to find a suitable tab when original tab is not available
+async function fallbackToSuitableTab(shareTabId) {
+  const allTabs = await browser.tabs.query({ currentWindow: true });
+  const suitableTab = allTabs.find(tab => 
+    tab.id !== shareTabId && 
+    !tab.url.includes('telegram.me/share') &&
+    (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
+  );
+  
+  if (suitableTab) {
+    await browser.tabs.update(suitableTab.id, { active: true });
+    console.log(`Switched to suitable tab with ID: ${suitableTab.id}`);
+  } else {
+    console.log("No suitable tab found to switch back to");
+  }
+}
+
 // Main function that runs when the user clicks the browser action icon.
 async function onClicked(currentTab) {
   console.log("Share icon clicked.");
+  
+  // IMPORTANT: Capture the original tab ID immediately
+  const originalTabId = currentTab.id;
+  console.log(`Original tab ID captured: ${originalTabId}`);
 
   try {
     const result = await browser.storage.local.get("isAuthorized");
@@ -117,18 +138,18 @@ async function onClicked(currentTab) {
       // --- Authorized Workflow ---
       console.log("User is authorized. Proceeding with sharing.");
       const shareUrl = `https://telegram.me/share/url?url=${encodeURIComponent(currentTab.url)}`;
-      await triggerTelegramShare(shareUrl);
+      await triggerTelegramShare(shareUrl, originalTabId);
     } else {
       // --- First-Time-Use Workflow ---
       const firstTimeShareUrl = `https://telegram.me/share/url?url=${encodeURIComponent(currentTab.url)}`;
       console.log("First time use. Setting authorization and triggering share.");
-
+      
       // Set the flag in storage so this runs only once
       await browser.storage.local.set({ isAuthorized: true });
       console.log("Authorization status set to true.");
 
       // Trigger the share, which will also prompt for OS-level permissions
-      await triggerTelegramShare(firstTimeShareUrl);
+      await triggerTelegramShare(firstTimeShareUrl, originalTabId);
     }
   } catch (error) {
     console.error(`An error occurred: ${error}`);
